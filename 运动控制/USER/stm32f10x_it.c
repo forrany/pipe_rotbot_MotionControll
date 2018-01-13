@@ -75,12 +75,12 @@ void TIM4_IRQHandler(void)
 	if(TIM4->SR&0x0001)//溢出中断
 	{
 		//GPIO_ResetBits(GPIOC,GPIO_Pin_6);
-		switch(RxMessage.Data[1])
-		{
-			case 1: cycle-=1; break;
-			case 2: cycle+=1; break;
-			default : cycle=cycle; break;
-		}
+	//	switch(RxMessage.Data[1])
+	//	{
+	//		case 1: cycle-=1; break;
+		//	case 2: cycle+=1; break;
+	//		default : cycle=cycle; break;
+	//	}
 //		TxMessage.Data[0]=cycle;
 //		TxMessage.Data[1]=(TIM4->CNT)/4;  //发送当前编码器读书，理论为0
 //		CAN_Transmit(CAN1, &TxMessage);

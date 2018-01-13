@@ -3,11 +3,13 @@
 #include "encode.h"
 #include "timer.h"
 void  Delay_Ms(u16 time);
+void SendSpeed(unsigned short Count1, unsigned short Count2);
 __IO uint32_t flag = 0xff;		 //用于CAN标志是否接收到数据，在中断函数中赋值
 CanTxMsg TxMessage;			     //CAN1发送缓冲区
 CanRxMsg RxMessage;				 //CAN1接收缓冲区 
-u8 count;//编码器计数  两字节
-u8 count1;
+unsigned short count;//编码器计数  两字节
+unsigned short count1;
+unsigned short speed; //Speed of Motor;
 volatile u32 cycle=127; 
 
 int main(void)  
@@ -65,9 +67,10 @@ int main(void)
 										}
 									 do
 											 {
-													count=(TIM1->CNT)/4;
+													count=(TIM1->CNT);
 													Dealy_us(10000);  //10ms
-													count1=(TIM1->CNT)/4;
+													count1=(TIM1->CNT);
+												  SendSpeed(count1,count);
 											 if(RxMessage.Data[1]==0x00)
 							         break;
 //												  TxMessage.Data[0]=count;
@@ -75,6 +78,7 @@ int main(void)
 //												  CAN_Transmit(CAN1,&TxMessage);
 											 } 	 while(count!=count1);
 								 GPIO_ResetBits(GPIOC,GPIO_Pin_7);
+								 TIM1->CNT=0;
 	
 							 }
 							if(RxMessage.Data[1]==0x02)
@@ -88,9 +92,10 @@ int main(void)
 											}
 						           	 do
 											 {
-													count=(TIM1->CNT)/4;
+													count=(TIM1->CNT);
 													Dealy_us(10000);  //10ms
-													count1=(TIM1->CNT)/4;
+													count1=(TIM1->CNT);
+												  SendSpeed(count,count1);
 											if(RxMessage.Data[1]==0x00)
 							         break;
 //												  TxMessage.Data[0]=count;
@@ -98,6 +103,7 @@ int main(void)
 //												  CAN_Transmit(CAN1,&TxMessage);
 											 } 	 while(count!=count1);
 								 GPIO_ResetBits(GPIOC,GPIO_Pin_7);
+								 TIM1->CNT=0;
 								}
 							if(RxMessage.Data[1]==0x00)
 							{
@@ -134,3 +140,13 @@ void Delay_Ms(u16 time)  //延时函数
     		;
 }
 
+void SendSpeed(unsigned short Count1, unsigned short Count2)
+{
+		speed = (Count2 - Count1);
+	  TxMessage.Data[0]= speed&0x00ff;
+		TxMessage.Data[1]= speed>>8;
+		//TxMessage.Data[0]= Count1&0x00ff;
+		//TxMessage.Data[1]= Count1>>8;
+		TxMessage.Data[2]= 0xAC;
+		CAN_Transmit(CAN1, &TxMessage);
+}
