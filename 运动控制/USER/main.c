@@ -30,7 +30,7 @@ int main(void)
 									case 1: Motor1_control(400,0); break;
 									case 2: Motor1_control(600,0); break;
 									case 3: Motor1_control(750,0); break;
-									case 4: Motor1_control(900,0); break;	
+									case 4: Motor1_control(999,0); break;	
 								}	
 		       }
 				 if(RxMessage.Data[1]==0x02)   //ºóÍË
@@ -40,7 +40,7 @@ int main(void)
 									case 1: Motor1_control(0,400); break;
 									case 2: Motor1_control(0,500); break;
 									case 3: Motor1_control(0,750); break;
-									case 4: Motor1_control(0,900); break;
+									case 4: Motor1_control(0,999); break;
 								}
 						}
 				 if(RxMessage.Data[1]==0x00)
