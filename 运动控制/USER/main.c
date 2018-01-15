@@ -2,7 +2,9 @@
 #include "can.h"
 #include "encode.h"
 #include "timer.h"
+#include <Math.h>
 void  Delay_Ms(u16 time);
+void SpeedAdjust(void);
 void SendSpeed(unsigned short avgspeed);
 __IO uint32_t flag = 0xff;		 //用于CAN标志是否接收到数据，在中断函数中赋值
 CanTxMsg TxMessage;			     //CAN1发送缓冲区
@@ -10,9 +12,10 @@ CanRxMsg RxMessage;				 //CAN1接收缓冲区
 unsigned short count;//编码器计数  两字节
 unsigned short count1;
 unsigned short speed; //Speed of Motor;
-unsigned short avgspeed;
+unsigned short avgspeed,distance;
+float acdis,calcycle;
 volatile u32 cycle=127; 
-_Bool speedflag = 0;
+_Bool speedflag = 0,dirtflag = 1;
 
 int main(void)  
 {  
@@ -26,8 +29,42 @@ int main(void)
 		while(flag==0xff);   //flag=0,can success
 		if(RxMessage.Data[0]==0x0A)   // 前后运动
 			{  flag=0xff;
-
-					if(RxMessage.Data[1]==0x01)    //前进
+				if(RxMessage.Data[1]==0x03 |RxMessage.Data[1]==0x04)    //伺服运动
+					{
+						distance = RxMessage.Data[2];
+					  if(RxMessage.Data[1]==0x03 )   //前进
+						   {
+									float calDistance;
+								  Motor1_control(0,999);
+								  dirtflag = 1;	
+									TxMessage.Data[2]=0xff;
+									CAN_Transmit(CAN1, &TxMessage);	
+									do{
+											calDistance = 0 - (float)distance;
+										  calcycle = (float)cycle - 127;
+											acdis = (calcycle * 11.3) + ((TIM3->CNT/4) * 0.071);
+											if(RxMessage.Data[1]==0x00)
+							           break;
+									} while (acdis > calDistance	);								 
+							 }
+						else if(RxMessage.Data[1]==0x04)
+							 {							   
+ 								  Motor1_control(999,0);
+								  dirtflag = 0;			
+									TxMessage.Data[2]=0xdd;
+									CAN_Transmit(CAN1, &TxMessage);	
+									do{
+											calcycle = (float)cycle - 127;
+											acdis = (calcycle * 11.3) + ((TIM3->CNT/4) * 0.071);
+											if(RxMessage.Data[1]==0x00)
+							           break;
+									} while (acdis < distance);								 
+							 }
+							 
+									GPIO_ResetBits(GPIOC,GPIO_Pin_6);
+							
+					}
+				if(RxMessage.Data[1]==0x01)    //后退
 					{
 						switch(RxMessage.Data[2])
 								{
@@ -37,7 +74,7 @@ int main(void)
 									case 4: Motor1_control(999,0); break;	
 								}	
 		       }
-				 if(RxMessage.Data[1]==0x02)   //后退
+				 if(RxMessage.Data[1]==0x02)   //前进
 					 { 
 						switch(RxMessage.Data[2])
 								{
@@ -171,3 +208,55 @@ void SendSpeed(unsigned short avgspeed)
 	CAN_Transmit(CAN1, &TxMessage);
 
 }
+
+void SpeedAdjust()
+{
+	float difference;
+	do{
+		acdis =((cycle-127) * 11.3)+((TIM3->CNT/4)*0.071);	
+		if(dirtflag == 1)
+		{difference = distance + acdis;}
+		else if(dirtflag == 0)
+		{difference = distance - acdis;}
+	}while(difference >0);
+
+		GPIO_ResetBits(GPIOC,GPIO_Pin_6);
+		TxMessage.Data[0]=TIM3->CNT/4;
+		TxMessage.Data[1]=distance;
+		TxMessage.Data[2]=0xDD;
+		CAN_Transmit(CAN1, &TxMessage);	
+	
+//	while(difference >3)
+//	{
+//		acdis = ((cycle-127) * 11.3) + ((TIM3->CNT)/4 * 0.071);	
+//		difference = distance - acdis;
+//		yvalue = floor(34 * difference +614);
+//		if(!dirtflag)
+//		{Motor1_control(0,yvalue);}
+//		 Motor1_control(yvalue,0);
+//	}	
+//	
+//   while(difference >1)
+//	{
+//		acdis = ((cycle-127) * 11.3) + ((TIM3->CNT)/4 * 0.071);		
+//		difference = distance - acdis;
+//		if(!dirtflag)
+//		{Motor1_control(0,750);}
+//		 Motor1_control(750,0);
+//	}
+//	
+//	while(difference >0.01)
+//	{
+//		acdis = ((cycle-127) * 11.3) + ((TIM3->CNT)/4 * 0.071);	
+//		difference = distance - acdis;
+//		if(!dirtflag)
+//		{Motor1_control(0,550);}
+//		 Motor1_control(550,0);
+//	}
+
+	
+}
+
+
+
+

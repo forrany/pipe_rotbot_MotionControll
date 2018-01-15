@@ -19,3 +19,4 @@
 ..\output\main.o: can.h
 ..\output\main.o: encode.h
 ..\output\main.o: timer.h
+..\output\main.o: D:\Keil_v5\ARM\ARMCC\Bin\..\include\Math.h

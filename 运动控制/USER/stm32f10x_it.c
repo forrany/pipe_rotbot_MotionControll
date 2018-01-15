@@ -61,8 +61,10 @@ void TIM3_IRQHandler(void)
 	{
 		switch(RxMessage.Data[1])
 		{
-			case 1: cycle-=1; break;
-			case 2: cycle+=1; break;
+			case 1: cycle+=1; break;
+			case 2: cycle-=1; break;
+			case 3: cycle-=1; break;
+			case 4: cycle+=1; break;
 			default : cycle=cycle; break;
 		}
 	}	
