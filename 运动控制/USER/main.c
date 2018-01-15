@@ -3,14 +3,16 @@
 #include "encode.h"
 #include "timer.h"
 void  Delay_Ms(u16 time);
-void SendSpeed(unsigned short Count1, unsigned short Count2);
+void SendSpeed(unsigned short avgspeed);
 __IO uint32_t flag = 0xff;		 //用于CAN标志是否接收到数据，在中断函数中赋值
 CanTxMsg TxMessage;			     //CAN1发送缓冲区
 CanRxMsg RxMessage;				 //CAN1接收缓冲区 
 unsigned short count;//编码器计数  两字节
 unsigned short count1;
 unsigned short speed; //Speed of Motor;
+unsigned short avgspeed;
 volatile u32 cycle=127; 
+_Bool speedflag = 0;
 
 int main(void)  
 {  
@@ -56,7 +58,7 @@ int main(void)
 		   }
 	  if(RxMessage.Data[0]==0x0C)   // 伸缩运动
 	       {   flag=0xff;
-							if(RxMessage.Data[1]==0x01)
+							if(RxMessage.Data[1]==0x01)   //收缩
 							{
 											switch(RxMessage.Data[2])
 										{
@@ -65,43 +67,62 @@ int main(void)
 											case 3: Motor2_control(0,750); break;
 											case 4: Motor2_control(0,900); break;
 										}
+										Dealy_us(50000);  //50ms 给一个起步缓冲，之后测速
 									 do
 											 {
 													count=(TIM1->CNT);
 													Dealy_us(10000);  //10ms
 													count1=(TIM1->CNT);
-												  SendSpeed(count1,count);
+												  speed = count - count1;
+												  SendSpeed(speed);                //收缩不存在滤波的问题
 											 if(RxMessage.Data[1]==0x00)
-							         break;
+							           break;
 //												  TxMessage.Data[0]=count;
 //												  TxMessage.Data[1]=count1;
 //												  CAN_Transmit(CAN1,&TxMessage);
-											 } 	 while(count!=count1);
+											 }  while(speed > 0x6b);
+											 //
+											 //while(count!=count1);
 								 GPIO_ResetBits(GPIOC,GPIO_Pin_7);
 								 TIM1->CNT=0;
 	
 							 }
 							if(RxMessage.Data[1]==0x02)
 								{ 
-											switch(RxMessage.Data[2])
+											switch(RxMessage.Data[2])   //扩张
 											{
 												case 1: Motor2_control(300,0); break;
 												case 2: Motor2_control(500,0); break;
 												case 3: Motor2_control(750,0); break;
 												case 4: Motor2_control(900,0); break;
 											}
+											  Dealy_us(50000);  //50ms   给一个起步缓冲 ，之后再测速
 						           	 do
 											 {
-													count=(TIM1->CNT);
-													Dealy_us(10000);  //10ms
-													count1=(TIM1->CNT);
-												  SendSpeed(count,count1);
-											if(RxMessage.Data[1]==0x00)
-							         break;
-//												  TxMessage.Data[0]=count;
-//												  TxMessage.Data[1]=count1;
-//												  CAN_Transmit(CAN1,&TxMessage);
-											 } 	 while(count!=count1);
+													for(int i = 0; i < 10; i++)
+														 {
+																int speedarr[10];
+																count=(TIM1->CNT);
+																Dealy_us(1000);  //10ms
+																count1=(TIM1->CNT);
+																speed = count1 - count;
+																		if (speed<0x08)              //检测瞬时速度是否小于阈值，小于立即置1 flag，跳出滤波和循环。
+																		{
+																		 speedflag = 1;
+																		 break;
+																		}
+															  speedarr[i] = speed;
+																avgspeed += speedarr[i];
+															 }
+												  if( speedflag){ break;}        //如果在内部循环中查找到，speed小于阈值，立马停止滤波，跳出循环。
+												  avgspeed /= 10;
+													SendSpeed(avgspeed);
+													
+											    if(RxMessage.Data[1]==0x00)
+							                break;
+											 }               	while(avgspeed > 0x09);
+																				//while(speed > 0x50);
+								 speedflag = 0;
 								 GPIO_ResetBits(GPIOC,GPIO_Pin_7);
 								 TIM1->CNT=0;
 								}
@@ -140,13 +161,13 @@ void Delay_Ms(u16 time)  //延时函数
     		;
 }
 
-void SendSpeed(unsigned short Count1, unsigned short Count2)
+void SendSpeed(unsigned short avgspeed)
 {
-		speed = (Count2 - Count1);
-	  TxMessage.Data[0]= speed&0x00ff;
-		TxMessage.Data[1]= speed>>8;
-		//TxMessage.Data[0]= Count1&0x00ff;
-		//TxMessage.Data[1]= Count1>>8;
-		TxMessage.Data[2]= 0xAC;
-		CAN_Transmit(CAN1, &TxMessage);
+	TxMessage.Data[0]= avgspeed&0x00ff;
+	TxMessage.Data[1]= avgspeed>>8;
+	//TxMessage.Data[0]= Count1&0x00ff;
+	//TxMessage.Data[1]= Count1>>8;
+	TxMessage.Data[2]= 0xAC;
+	CAN_Transmit(CAN1, &TxMessage);
+
 }
