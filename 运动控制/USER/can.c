@@ -158,7 +158,7 @@ void CAN_SetMsg(void)
   TxMessage.DLC=3;							 //数据长度为2字节
   TxMessage.Data[0]=0x7f;
   TxMessage.Data[1]=0x00;
-	TxMessage.Data[2]=0xAA;
+	TxMessage.Data[2]=0x00;
 }
 /**************************END OF FILE************************************/
 
