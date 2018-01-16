@@ -32,42 +32,42 @@ int main(void)
 				if(RxMessage.Data[1]==0x03 |RxMessage.Data[1]==0x04)    //伺服运动
 					{
 						distance = RxMessage.Data[2];
-					  if(RxMessage.Data[1]==0x03 )   //前进  注意，由于硬件安装问题，前进实际上编码器是倒着转，脉冲数会减小，cycle也会减小(cycle =127),计算时，会减去127作为0初始值计算。
-						   {
-								  float calDistance;    //定义浮点数，用于计算真正的距离。所谓真正的距离，因为上位机传过来的永远是正数，这里如果是【前进】命令，那么将距离设置为负数。
-									calDistance = 0 - (float)distance;
-									calcycle = (float)cycle - 127;
-									acdis = (calcycle * 11.3) + ((TIM3->CNT/4) * 0.071);
-								  if(acdis > calDistance)
-									{
-											Motor1_control(0,999);
-											dirtflag = 1;	
-											do{
-													calDistance = 0 - (float)distance;
-													calcycle = (float)cycle - 127;
-													acdis = (calcycle * 11.3) + ((TIM3->CNT/4) * 0.071);
-													if(RxMessage.Data[1]==0x00)
-														 break;
-											} while (acdis > calDistance	);											
-									}
-									else if(acdis < calDistance)
-									{
-											Motor1_control(999,0);
-											dirtflag = 0;
-											do{
-													calDistance = 0 - (float)distance;
-													calcycle = (float)cycle - 127;
-													acdis = (calcycle * 11.3) + ((TIM3->CNT/4) * 0.071);
-													if(RxMessage.Data[1]==0x00)
-														 break;											
-											
-											}while(acdis < calDistance);
-									}
-									
-							 
-							 }
-						else if(RxMessage.Data[1]==0x04)    //后退   后退，cycle和计数器都是正向增加
-							 {							   
+						float calDistance;
+						if(RxMessage.Data[3] == 0x00 )        //表示按钮是负方向的,即前进
+						{	
+								calDistance = 0 - (float)distance;
+								calcycle = (float)cycle - 127;
+								acdis = (calcycle * 11.3) + ((TIM3->CNT/4) * 0.071);
+								if(acdis > calDistance)
+								{
+										Motor1_control(0,999);
+										dirtflag = 1;	
+										do{
+												calDistance = 0 - (float)distance;
+												calcycle = (float)cycle - 127;
+												acdis = (calcycle * 11.3) + ((TIM3->CNT/4) * 0.071);
+												if(RxMessage.Data[1]==0x00)
+													 break;
+										} while (acdis > calDistance	);								
+								}
+								
+								else if(acdis < calDistance)
+								{
+										Motor1_control(999,0);
+										dirtflag = 0;
+										do{
+												calDistance = 0 - (float)distance;
+												calcycle = (float)cycle - 127;
+												acdis = (calcycle * 11.3) + ((TIM3->CNT/4) * 0.071);
+												if(RxMessage.Data[1]==0x00)
+													 break;											
+										
+										}while(acdis < calDistance);
+								}						
+							}
+						else if (RxMessage.Data[3] == 0x01 )  //表示按钮是正方向，即后退
+						{	
+							
  								  calcycle = (float)cycle - 127;
 								  acdis = (calcycle * 11.3) + ((TIM3->CNT/4) * 0.071);
 								  if(distance > acdis)
@@ -91,13 +91,32 @@ int main(void)
 														if(RxMessage.Data[1] == 0x00)
 															break;											
 												} while(distance < acdis);															
-									}
+									}						
+						}
 						
-							 } 
+						
+						
+//					  if(RxMessage.Data[1]==0x03 )   //前进  注意，由于硬件安装问题，前进实际上编码器是倒着转，脉冲数会减小，cycle也会减小(cycle =127),计算时，会减去127作为0初始值计算。
+//						   {
+//								  float calDistance;    //定义浮点数，用于计算真正的距离。所谓真正的距离，因为上位机传过来的永远是正数，这里如果是【前进】命令，那么将距离设置为负数。
+//									calDistance = 0 - (float)distance;
+//									calcycle = (float)cycle - 127;
+//									acdis = (calcycle * 11.3) + ((TIM3->CNT/4) * 0.071);
+
+
+//									
+//							 
+//							 }
+//						else if(RxMessage.Data[1]==0x04)    //后退   后退，cycle和计数器都是正向增加
+//							 {							   
+
+//						
+//							 } 
 									GPIO_ResetBits(GPIOC,GPIO_Pin_6);
 									TxMessage.Data[0]=cycle&0x00ff;
 									TxMessage.Data[1]=cycle>>8;
-									TxMessage.Data[2]=(TIM3->CNT)/4;
+									TxMessage.Data[2]=(TIM3->CNT)/4&0x00ff;
+									TxMessage.Data[3]=(TIM3->CNT)/4>>8;
 									CAN_Transmit(CAN1, &TxMessage);
 							
 					}
@@ -126,7 +145,8 @@ int main(void)
 								GPIO_ResetBits(GPIOC,GPIO_Pin_6); //停止
 								TxMessage.Data[0]=cycle&0x00ff;
 						    TxMessage.Data[1]=cycle>>8;
-								TxMessage.Data[2]=(TIM3->CNT)/4;
+								TxMessage.Data[2]=(TIM3->CNT)/4&0x00ff;
+								TxMessage.Data[3]=(TIM3->CNT)/4>>8;
 								CAN_Transmit(CAN1, &TxMessage);
 					 }
 		   }
