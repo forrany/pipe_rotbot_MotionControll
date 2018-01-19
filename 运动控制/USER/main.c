@@ -5,6 +5,7 @@
 #include <Math.h>
 void  Delay_Ms(u16 time);
 void SpeedAdjust(void);
+void ActPosition(void);
 void SendSpeed(unsigned short avgspeed);
 __IO uint32_t flag = 0xff;		 //用于CAN标志是否接收到数据，在中断函数中赋值
 CanTxMsg TxMessage;			     //CAN1发送缓冲区
@@ -13,9 +14,10 @@ unsigned short count;//编码器计数  两字节
 unsigned short count1;
 unsigned short speed; //Speed of Motor;
 unsigned short avgspeed,distance;
-float acdis,calcycle;
+volatile float acdis,calcycle;
 volatile u32 cycle=127; 
-_Bool speedflag = 0,dirtflag = 1;
+_Bool speedflag = 0;
+short dirtflag =2;
 
 int main(void)  
 {  
@@ -37,7 +39,8 @@ int main(void)
 						{	
 								calDistance = 0 - (float)distance;
 								calcycle = (float)cycle - 127;
-								acdis = (calcycle * 11.3) + ((TIM3->CNT/4) * 0.071);
+								//acdis = (calcycle * 10.4) + ((TIM3->CNT/4) * 0.0165);
+							  ActPosition();
 								if(acdis > calDistance)
 								{
 										Motor1_control(0,999);
@@ -45,7 +48,8 @@ int main(void)
 										do{
 												calDistance = 0 - (float)distance;
 												calcycle = (float)cycle - 127;
-												acdis = (calcycle * 11.3) + ((TIM3->CNT/4) * 0.071);
+												//acdis = (calcycle * 10.4) + ((TIM3->CNT/4) * 0.0165);
+												ActPosition();
 												if(RxMessage.Data[1]==0x00)
 													 break;
 										} while (acdis > calDistance	);								
@@ -58,7 +62,8 @@ int main(void)
 										do{
 												calDistance = 0 - (float)distance;
 												calcycle = (float)cycle - 127;
-												acdis = (calcycle * 11.3) + ((TIM3->CNT/4) * 0.071);
+//												acdis = (calcycle * 10.4) + ((TIM3->CNT/4) * 0.0165);
+												ActPosition();
 												if(RxMessage.Data[1]==0x00)
 													 break;											
 										
@@ -69,14 +74,16 @@ int main(void)
 						{	
 							
  								  calcycle = (float)cycle - 127;
-								  acdis = (calcycle * 11.3) + ((TIM3->CNT/4) * 0.071);
+//								  acdis = (calcycle * 10.4) + ((TIM3->CNT/4) * 0.0165);
+									ActPosition();
 								  if(distance > acdis)
 									{
 												Motor1_control(999,0);
 												dirtflag = 0;												
 												do{
 														calcycle = (float)cycle - 127;
-														acdis = (calcycle * 11.3) + ((TIM3->CNT/4) * 0.071);
+														//acdis = (calcycle * 10.4) + ((TIM3->CNT/4) * 0.0165);
+														ActPosition();
 														if(RxMessage.Data[1]==0x00)
 															 break;
 												} while (acdis < distance);								 
@@ -87,7 +94,8 @@ int main(void)
 												dirtflag = 1;
 												do{
 														calcycle = (float)cycle - 127;
-														acdis = (calcycle * 11.3) + ((TIM3->CNT/4) * 0.071);
+														//acdis = (calcycle * 10.4) + ((TIM3->CNT/4) * 0.0165);
+														ActPosition();
 														if(RxMessage.Data[1] == 0x00)
 															break;											
 												} while(distance < acdis);															
@@ -128,7 +136,7 @@ int main(void)
 									case 2: Motor1_control(600,0); break;
 									case 3: Motor1_control(750,0); break;
 									case 4: Motor1_control(999,0); break;	
-								}	
+								}					
 		       }
 				 if(RxMessage.Data[1]==0x02)   //前进
 					 { 
@@ -312,6 +320,16 @@ void SpeedAdjust()
 //	}
 
 	
+}
+
+void ActPosition(void) {
+		if(dirtflag == 0)
+		{acdis = ((calcycle * 11.4) + ((TIM3->CNT/4) * 0.018))-1.5;}
+		else if(dirtflag == 1)
+		{acdis = ((calcycle * 11.4) + ((TIM3->CNT/4) * 0.018))+1.5;}
+		else if(dirtflag == 2)
+		{acdis = ((calcycle * 11.4) + ((TIM3->CNT/4) * 0.018));}
+		
 }
 
 

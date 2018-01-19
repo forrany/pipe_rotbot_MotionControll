@@ -28,7 +28,7 @@ void TIM3_Mode_Config(void)
 
 	TIM_DeInit(TIM3);
 	TIM_TimeBaseStructInit(&TIM_TimeBaseStructure);
-	TIM_TimeBaseStructure.TIM_Period = 158*4;  //设定计数器重装值   TIMx_ARR = 1024*4
+	TIM_TimeBaseStructure.TIM_Period = 630*4;  //设定计数器重装值   TIMx_ARR = 1024*4
 	TIM_TimeBaseStructure.TIM_Prescaler = 0; //TIM3时钟预分频值
 	TIM_TimeBaseStructure.TIM_ClockDivision =TIM_CKD_DIV1 ;//设置时钟分割 T_dts = T_ck_int	
 	TIM_TimeBaseStructure.TIM_CounterMode = TIM_CounterMode_Up; //TIM向上计数 
