@@ -324,9 +324,9 @@ void SpeedAdjust()
 
 void ActPosition(void) {
 		if(dirtflag == 0)
-		{acdis = ((calcycle * 11.4) + ((TIM3->CNT/4) * 0.018))-1.5;}
+		{acdis = ((calcycle * 11.4) + ((TIM3->CNT/4) * 0.018))-2.0;}
 		else if(dirtflag == 1)
-		{acdis = ((calcycle * 11.4) + ((TIM3->CNT/4) * 0.018))+1.5;}
+		{acdis = ((calcycle * 11.4) + ((TIM3->CNT/4) * 0.018))+2.0;}
 		else if(dirtflag == 2)
 		{acdis = ((calcycle * 11.4) + ((TIM3->CNT/4) * 0.018));}
 		
