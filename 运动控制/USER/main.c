@@ -4,6 +4,8 @@
 #include "timer.h"
 #include <Math.h>
 void  Delay_Ms(u16 time);
+void SpeedUp(_Bool dirt,_Bool speedUpOrDown );
+void SpeedDown(void);
 void SpeedAdjust(void);
 void ActPosition(void);
 void SendSpeed(unsigned short avgspeed);
@@ -17,7 +19,26 @@ unsigned short avgspeed,distance;
 volatile float acdis,calcycle;
 volatile u32 cycle=127; 
 _Bool speedflag = 0;
-short dirtflag =2;
+_Bool ifMaxSpeed = 0;  //是否需要S曲线加速和减速，如果最大速度，则S曲线加减速，否则，正常
+short dirtflag =2;     // 1表示前进    2 表示后退     2表示初始化的值，2表示刚开机，计算实际距离不需要进行补偿
+u32 SpeedArr[130]={52,52,52,53,53,53,54,54,55,55,56,57,57,58,59,
+										60,61,62,64,65,67,68,70,72,75,77,80,83,87,90,
+										95,99,104,109,115,122,129,136,144,153,163,173,
+										184,196,209,223,237,253,269,287,305,324,344,365,
+										386,408,431,454,477,501,525,548,572,595,618,641,
+										663,684,705,725,744,762,780,796,812,826,840,853,865,
+										876,886,896,905,913,920,927,934,940,945,950,954,959,
+										962,966,969,972,974,977,979,981,982,984,985,987,988,
+										989,990,991,992,992,993,994,994,995,995,996,996,996,
+										997,997,997,997,998,998,998,998,998,998,998,999};
+u32 SpeedArrBe[100]={209,209,209,209,209,209,209,209,209,209,209,209,209,																			
+										209,209,223,237,253,269,287,305,324,344,365,
+										386,408,431,454,477,501,525,548,572,595,618,641,
+										663,684,705,725,744,762,780,796,812,826,840,853,865,
+										876,886,896,905,913,920,927,934,940,945,950,954,959,
+										962,966,969,972,974,977,979,981,982,984,985,987,988,
+										989,990,991,992,992,993,994,994,995,995,996,996,996,
+										997,997,997,997,998,998,998,998,998,998,998,999};
 
 int main(void)  
 {  
@@ -35,91 +56,32 @@ int main(void)
 					{
 						distance = RxMessage.Data[2];
 						float calDistance;
-						if(RxMessage.Data[3] == 0x00 )        //表示按钮是负方向的,即前进
-						{	
-								calDistance = 0 - (float)distance;
+						if(RxMessage.Data[3] == 0x00 ) {       //表示按钮是负方向的,即前进   
+								calDistance = 0 - (float)distance;   //这个时候,需要到达的目的地，是一个负数，因此  (0 - distance)
 								calcycle = (float)cycle - 127;
 								//acdis = (calcycle * 10.4) + ((TIM3->CNT/4) * 0.0165);
-							  ActPosition();
-								if(acdis > calDistance)
-								{
-										Motor1_control(0,999);
-										dirtflag = 1;	
-										do{
-												calDistance = 0 - (float)distance;
-												calcycle = (float)cycle - 127;
-												//acdis = (calcycle * 10.4) + ((TIM3->CNT/4) * 0.0165);
-												ActPosition();
-												if(RxMessage.Data[1]==0x00)
-													 break;
-										} while (acdis > calDistance	);								
-								}
-								
-								else if(acdis < calDistance)
-								{
-										Motor1_control(999,0);
-										dirtflag = 0;
-										do{
-												calDistance = 0 - (float)distance;
-												calcycle = (float)cycle - 127;
-//												acdis = (calcycle * 10.4) + ((TIM3->CNT/4) * 0.0165);
-												ActPosition();
-												if(RxMessage.Data[1]==0x00)
-													 break;											
-										
-										}while(acdis < calDistance);
-								}						
-							}
-						else if (RxMessage.Data[3] == 0x01 )  //表示按钮是正方向，即后退
-						{	
-							
- 								  calcycle = (float)cycle - 127;
-//								  acdis = (calcycle * 10.4) + ((TIM3->CNT/4) * 0.0165);
+							  ActPosition();    //计算得到实际距离，根据编码器得到的值
+								calDistance +=(acdis - 1.0);
+		           	SpeedUp(1,1);   
+								do{ 
+										calcycle = (float)cycle - 127;
+										ActPosition();
+									if(RxMessage.Data[1]==0x00)
+											 break;
+								} while (acdis > calDistance	);	
+						 }else if (RxMessage.Data[3] == 0x01 ){  //表示按钮是正方向，即后退
+ 								  calDistance = (float)distance;
+									calcycle = (float)cycle - 127;
 									ActPosition();
-								  if(distance > acdis)
-									{
-												Motor1_control(999,0);
-												dirtflag = 0;												
-												do{
-														calcycle = (float)cycle - 127;
-														//acdis = (calcycle * 10.4) + ((TIM3->CNT/4) * 0.0165);
-														ActPosition();
-														if(RxMessage.Data[1]==0x00)
-															 break;
-												} while (acdis < distance);								 
-							     }									
-									else if(distance < acdis)
-									{
-												Motor1_control(0,999);
-												dirtflag = 1;
-												do{
-														calcycle = (float)cycle - 127;
-														//acdis = (calcycle * 10.4) + ((TIM3->CNT/4) * 0.0165);
-														ActPosition();
-														if(RxMessage.Data[1] == 0x00)
-															break;											
-												} while(distance < acdis);															
-									}						
-						}
-						
-						
-						
-//					  if(RxMessage.Data[1]==0x03 )   //前进  注意，由于硬件安装问题，前进实际上编码器是倒着转，脉冲数会减小，cycle也会减小(cycle =127),计算时，会减去127作为0初始值计算。
-//						   {
-//								  float calDistance;    //定义浮点数，用于计算真正的距离。所谓真正的距离，因为上位机传过来的永远是正数，这里如果是【前进】命令，那么将距离设置为负数。
-//									calDistance = 0 - (float)distance;
-//									calcycle = (float)cycle - 127;
-//									acdis = (calcycle * 11.3) + ((TIM3->CNT/4) * 0.071);
-
-
-//									
-//							 
-//							 }
-//						else if(RxMessage.Data[1]==0x04)    //后退   后退，cycle和计数器都是正向增加
-//							 {							   
-
-//						
-//							 } 
+									calDistance += (acdis+1.0);
+									SpeedUp(0,1);     //改成S曲线加速										
+									do{
+											calcycle = (float)cycle - 127;
+											ActPosition();
+											if(RxMessage.Data[1]==0x00)
+												 break;
+									} while (acdis < calDistance);		
+						   }
 									GPIO_ResetBits(GPIOC,GPIO_Pin_6);
 									TxMessage.Data[0]=cycle&0x00ff;
 									TxMessage.Data[1]=cycle>>8;
@@ -135,7 +97,7 @@ int main(void)
 									case 1: Motor1_control(400,0); break;
 									case 2: Motor1_control(600,0); break;
 									case 3: Motor1_control(750,0); break;
-									case 4: Motor1_control(999,0); break;	
+									case 4: SpeedUp(0,1); break;	
 								}					
 		       }
 				 if(RxMessage.Data[1]==0x02)   //前进
@@ -145,12 +107,16 @@ int main(void)
 									case 1: Motor1_control(0,400); break;
 									case 2: Motor1_control(0,500); break;
 									case 3: Motor1_control(0,750); break;
-									case 4: Motor1_control(0,999); break;
+									case 4: SpeedUp(1,1); break;
 								}
 						}
 				 if(RxMessage.Data[1]==0x00)
 					 {
-								GPIO_ResetBits(GPIOC,GPIO_Pin_6); //停止
+								if(ifMaxSpeed){
+									SpeedUp(1,0);
+								}else{
+									GPIO_ResetBits(GPIOC,GPIO_Pin_6); //停止								
+								}
 								TxMessage.Data[0]=cycle&0x00ff;
 						    TxMessage.Data[1]=cycle>>8;
 								TxMessage.Data[2]=(TIM3->CNT)/4&0x00ff;
@@ -162,13 +128,14 @@ int main(void)
 	       {   flag=0xff;
 							if(RxMessage.Data[1]==0x01)   //收缩
 							{
-											switch(RxMessage.Data[2])
-										{
-											case 1: Motor2_control(0,400); break;
-											case 2: Motor2_control(0,500); break;
-											case 3: Motor2_control(0,750); break;
-											case 4: Motor2_control(0,900); break;
-										}
+//											switch(RxMessage.Data[2])
+//										{
+//											case 1: Motor2_control(0,400); break;
+//											case 2: Motor2_control(0,500); break;
+//											case 3: Motor2_control(0,750); break;
+//											case 4: Motor2_control(0,900); break;
+//										}
+										Motor2_control(0,900);
 										Dealy_us(50000);  //50ms 给一个起步缓冲，之后测速
 									 do
 											 {
@@ -176,7 +143,7 @@ int main(void)
 													Dealy_us(10000);  //10ms
 													count1=(TIM1->CNT);
 												  speed = count - count1;
-												  SendSpeed(speed);                //收缩不存在滤波的问题
+//												  SendSpeed(speed);                //收缩不存在滤波的问题
 											 if(RxMessage.Data[1]==0x00)
 							           break;
 //												  TxMessage.Data[0]=count;
@@ -191,13 +158,14 @@ int main(void)
 							 }
 							if(RxMessage.Data[1]==0x02)
 								{ 
-											switch(RxMessage.Data[2])   //扩张
-											{
-												case 1: Motor2_control(300,0); break;
-												case 2: Motor2_control(500,0); break;
-												case 3: Motor2_control(750,0); break;
-												case 4: Motor2_control(900,0); break;
-											}
+//											switch(RxMessage.Data[2])   //扩张
+//											{
+//												case 1: Motor2_control(300,0); break;
+//												case 2: Motor2_control(500,0); break;
+//												case 3: Motor2_control(750,0); break;
+//												case 4: Motor2_control(900,0); break;
+//											}
+												Motor2_control(900,0);
 											  Dealy_us(50000);  //50ms   给一个起步缓冲 ，之后再测速
 						           	 do
 											 {
@@ -218,7 +186,7 @@ int main(void)
 															 }
 												  if( speedflag){ break;}        //如果在内部循环中查找到，speed小于阈值，立马停止滤波，跳出循环。
 												  avgspeed /= 10;
-													SendSpeed(avgspeed);
+//													SendSpeed(avgspeed);
 													
 											    if(RxMessage.Data[1]==0x00)
 							                break;
@@ -323,15 +291,102 @@ void SpeedAdjust()
 }
 
 void ActPosition(void) {
-		if(dirtflag == 0)
-		{acdis = ((calcycle * 11.4) + ((TIM3->CNT/4) * 0.018))-2.0;}
-		else if(dirtflag == 1)
-		{acdis = ((calcycle * 11.4) + ((TIM3->CNT/4) * 0.018))+2.0;}
-		else if(dirtflag == 2)
-		{acdis = ((calcycle * 11.4) + ((TIM3->CNT/4) * 0.018));}
-		
+//		if(dirtflag == 0)
+//		{acdis = ((calcycle * 11.4) + ((TIM3->CNT/4) * 0.018));}
+//		else if(dirtflag == 1)
+//		{acdis = ((calcycle * 11.4) + ((TIM3->CNT/4) * 0.018));}
+//		else if(dirtflag == 2)
+//		{acdis = ((calcycle * 11.4) + ((TIM3->CNT/4) * 0.018));}
+//		
+		acdis = ((calcycle * 11.4) + ((TIM3->CNT/4) * 0.018));
 }
 
+void SpeedUp(_Bool dirt,_Bool speedUpOrDown ){    //加减速控制，第一个参数，方向，前进或者后退； 第二参数，加速或者减速。true 为前进  加速
+	if(speedUpOrDown){
+		if(dirt){
+			for(int i = 0; i < 130; i++ ){
+				if(RxMessage.Data[1]==0x00){
+					GPIO_ResetBits(GPIOC,GPIO_Pin_6);
+					break;
+				}
+				u32 MoveSpeed = SpeedArr[i];
+				Motor1_control(0,MoveSpeed);
+				dirtflag = 1;
+				Delay_Ms(5);
+			}
+		}else{
+			for(int i = 0; i < 130; i++ ){
+				if(RxMessage.Data[1]==0x00){
+					GPIO_ResetBits(GPIOC,GPIO_Pin_6);
+					break;
+				}				
+				u32 MoveSpeed = SpeedArr[i];
+				Motor1_control(MoveSpeed,0);
+				dirtflag = 0;
+				Delay_Ms(5);
+			}
+		}
+	}else{
+		u32 len = sizeof(SpeedArr)-1;
+		if(dirtflag){
+			for(int i = 0; i < 130; i++){
+				if(RxMessage.Data[1]==0x00){
+					GPIO_ResetBits(GPIOC,GPIO_Pin_6);
+					break;
+				}
+				u32 MoveSpeed = SpeedArr[len-i];
+				Motor1_control(0,MoveSpeed);
+				Delay_Ms(5);
+			}
+		}else{
+			for(int i = 0; i < 130; i++){
+				if(RxMessage.Data[1]==0x00){
+					GPIO_ResetBits(GPIOC,GPIO_Pin_6);
+					break;
+				}
+				u32 MoveSpeed = SpeedArr[len-i];
+				Motor1_control(MoveSpeed,0);
+				Delay_Ms(5);
+			}
+		}
+	}
+}
 
+void SpeedDown(void){
+	if(dirtflag){
+		for(int i = 0; i < 100; i++){
+			if(RxMessage.Data[1]==0x00){
+				GPIO_ResetBits(GPIOC,GPIO_Pin_6);
+				break;		
+			}
+			u32 MoveSpeed = SpeedArrBe[99-i];
+			Motor1_control(0,MoveSpeed);
+			Dealy_us(100);
+			
+		}	
+	}else{
+		for(int i = 0; i < 100; i++){
+			if(RxMessage.Data[1]==0x00){
+				GPIO_ResetBits(GPIOC,GPIO_Pin_6);
+				break;		
+			}
+			u32 MoveSpeed = SpeedArrBe[99-i];
+			Motor1_control(MoveSpeed,0);
+			Dealy_us(100);
+		}
+	}
+}
+
+//		for(int i = 0; i < 130; i++) {
+//			u32 MoveSpeed = SpeedArr[i];
+//			if(dirt){
+//				
+//			}else{
+//				Motor1_control(MoveSpeed,0);
+//			}
+//		}	
+//	}else{
+//		
+//	}
 
 
