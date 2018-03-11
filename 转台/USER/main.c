@@ -110,16 +110,16 @@ int main(void)
 											case 1: Motor2_control(0,400); break;
 											case 2: Motor2_control(0,500); break;
 											case 3: Motor2_control(0,750); break;
-											case 4: Motor2_control(0,900); break;
+											case 4: Motor2_control(0,999); break;
 										}
 										do
 											{
 										   count=(TIM1->CNT)/4;
-											 Dealy_us(10000);   //100ms 间隔检查
+											 Dealy_us(20000);   //100ms 间隔检查
                        count1=(TIM1->CNT)/4;
 											 if(RxMessage.Data[1]==0x00)
 							         break;
-											                                               }   while(count!=count1);
+											                                               }   while(1);//while(count!=count1);
                     	 GPIO_ResetBits(GPIOC,GPIO_Pin_7); //停止		
                        SysTick->CTRL &= ~SysTick_CTRL_ENABLE_Msk;  //关闭Systick											 
 																	
@@ -132,15 +132,15 @@ int main(void)
 												case 1: Motor2_control(300,0); break;
 												case 2: Motor2_control(500,0); break;
 												case 3: Motor2_control(750,0); break;
-												case 4: Motor2_control(900,0); break;
+												case 4: Motor2_control(999,0); break;
 											}
 												do
 											{
 										   count=(TIM1->CNT)/4;
-											 Dealy_us(10000);
+											 Dealy_us(20000);
                        count1=(TIM1->CNT)/4;
 											 if(RxMessage.Data[1]==0x00)
-							         break;                     }   while(count!=count1);
+							         break;                     }   while(1);//while(count!=count1); 注释内容为正确的，while(1)关掉停止判定
                     	 GPIO_ResetBits(GPIOC,GPIO_Pin_7); //停止		
                        SysTick->CTRL &= ~SysTick_CTRL_ENABLE_Msk;  //关闭Systick
 

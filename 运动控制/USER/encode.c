@@ -104,7 +104,7 @@ void TIM1_Mode_Config(void)
 	TIM_ICInitTypeDef TIM_ICInitStructure;   	
 	NVIC_InitTypeDef NVIC_InitStructure;
 
-	//PB13 ch1N  A,PB14 ch2N 
+	//PA8 ch1  A,PA9 ch2 
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_TIM1, ENABLE);	   // ENCODER_TIMER时钟初始化
   RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA, ENABLE);	   // ENCODER_GPIO时钟初始化
 	

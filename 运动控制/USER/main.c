@@ -21,6 +21,15 @@ volatile u32 cycle=127;
 _Bool speedflag = 0;
 _Bool ifMaxSpeed = 0;  //是否需要S曲线加速和减速，如果最大速度，则S曲线加减速，否则，正常
 short dirtflag =2;     // 1表示前进    2 表示后退     2表示初始化的值，2表示刚开机，计算实际距离不需要进行补偿
+/*****************************************************************************************************************
+* 数组名称: ApeedArr[130]; SpeedArrBe[100]
+* 描述：    两个数组分别记录了S曲线的加速参数，SpeedArrBe是一个缩略版，最小值为209，在于让电机减速时持续运动
+            【因为当PWM占空比过小，电压低而造成电机无法转动】
+						
+* 输出：    none;
+* 输入:     none
+*******************************************************************************************************************/
+
 u32 SpeedArr[130]={52,52,52,53,53,53,54,54,55,55,56,57,57,58,59,
 										60,61,62,64,65,67,68,70,72,75,77,80,83,87,90,
 										95,99,104,109,115,122,129,136,144,153,163,173,
@@ -177,7 +186,7 @@ int main(void)
 																count1=(TIM1->CNT);
 																speed = count1 - count;
 																		if (speed<0x08)              //检测瞬时速度是否小于阈值，小于立即置1 flag，跳出滤波和循环。
-																		{
+																		{ 
 																		 speedflag = 1;
 																		 break;
 																		}
@@ -205,15 +214,6 @@ int main(void)
 							}
 						}
 					}
-	/*if(RxMessage.Data[1]==0x0B)   //通过CAN发送数据，另一块单片机执行
-	{
-		std=0xff;
-		CAN_SetMsg();
-		TransmitMailbox=CAN_Transmit(CAN1,&TxMessage);
-		while((CAN_TransmitStatus(CAN1,TransmitMailbox) !=CANTXOK)); //等待发送完成	
-   	printf("传输完毕");
-	}
-	 */ 
 }  
 
 /*******************************************************************************
@@ -230,7 +230,13 @@ void Delay_Ms(u16 time)  //延时函数
   		for(j=0;j<10260;j++)
     		;
 }
-
+/*******************************************************************************
+* Function Name  : SendSpeed
+* Description    : 发送速度至CAN总线，主要用于调试阶段，最终将不会使用该函数
+* Input          : speed（脉冲数)
+* Output         : None
+* Return         : None
+*******************************************************************************/
 void SendSpeed(unsigned short avgspeed)
 {
 	TxMessage.Data[0]= avgspeed&0x00ff;
@@ -242,54 +248,13 @@ void SendSpeed(unsigned short avgspeed)
 
 }
 
-void SpeedAdjust()
-{
-	float difference;
-	do{
-		acdis =((cycle-127) * 11.3)+((TIM3->CNT/4)*0.071);	
-		if(dirtflag == 1)
-		{difference = distance + acdis;}
-		else if(dirtflag == 0)
-		{difference = distance - acdis;}
-	}while(difference >0);
-
-		GPIO_ResetBits(GPIOC,GPIO_Pin_6);
-		TxMessage.Data[0]=TIM3->CNT/4;
-		TxMessage.Data[1]=distance;
-		TxMessage.Data[2]=0xDD;
-		CAN_Transmit(CAN1, &TxMessage);	
-	
-//	while(difference >3)
-//	{
-//		acdis = ((cycle-127) * 11.3) + ((TIM3->CNT)/4 * 0.071);	
-//		difference = distance - acdis;
-//		yvalue = floor(34 * difference +614);
-//		if(!dirtflag)
-//		{Motor1_control(0,yvalue);}
-//		 Motor1_control(yvalue,0);
-//	}	
-//	
-//   while(difference >1)
-//	{
-//		acdis = ((cycle-127) * 11.3) + ((TIM3->CNT)/4 * 0.071);		
-//		difference = distance - acdis;
-//		if(!dirtflag)
-//		{Motor1_control(0,750);}
-//		 Motor1_control(750,0);
-//	}
-//	
-//	while(difference >0.01)
-//	{
-//		acdis = ((cycle-127) * 11.3) + ((TIM3->CNT)/4 * 0.071);	
-//		difference = distance - acdis;
-//		if(!dirtflag)
-//		{Motor1_control(0,550);}
-//		 Motor1_control(550,0);
-//	}
-
-	
-}
-
+/*******************************************************************************
+* Function Name  : ActPosition
+* Description    : 根据编码器数值，计算当前实际的运动距离。因为有补偿，所以需要多次用和修改，现在只需一个计算公式
+* Input          : speed（脉冲数)
+* Output         : None
+* Return         : None
+*******************************************************************************/
 void ActPosition(void) {
 //		if(dirtflag == 0)
 //		{acdis = ((calcycle * 11.4) + ((TIM3->CNT/4) * 0.018));}
@@ -300,7 +265,13 @@ void ActPosition(void) {
 //		
 		acdis = ((calcycle * 11.4) + ((TIM3->CNT/4) * 0.018));
 }
-
+/*******************************************************************************
+* Function Name  : SpeedUp
+* Description    : S曲线加速函数，在函数中，根据加速表，进行加速。第一个参数代表方向，第二个参数代表加速或者减速
+* Input          : dirt 方向， 前进或者后退，都可以进行加速；   speedUpOrDown 是否加速，1代表加速，0代表不加速
+* Output         : 电机控制
+* Return         : None
+*******************************************************************************/
 void SpeedUp(_Bool dirt,_Bool speedUpOrDown ){    //加减速控制，第一个参数，方向，前进或者后退； 第二参数，加速或者减速。true 为前进  加速
 	if(speedUpOrDown){
 		if(dirt){
@@ -351,7 +322,13 @@ void SpeedUp(_Bool dirt,_Bool speedUpOrDown ){    //加减速控制，第一个参数，方向
 		}
 	}
 }
-
+/*******************************************************************************
+* Function Name  : SpeedDown
+* Description    : S减速，之所以单独添加，在于减速不需要输入参数，根据当前运行状态直接减速即可
+* Input          : None
+* Output         : None
+* Return         : None
+*******************************************************************************/
 void SpeedDown(void){
 	if(dirtflag){
 		for(int i = 0; i < 100; i++){
@@ -377,16 +354,5 @@ void SpeedDown(void){
 	}
 }
 
-//		for(int i = 0; i < 130; i++) {
-//			u32 MoveSpeed = SpeedArr[i];
-//			if(dirt){
-//				
-//			}else{
-//				Motor1_control(MoveSpeed,0);
-//			}
-//		}	
-//	}else{
-//		
-//	}
 
 
