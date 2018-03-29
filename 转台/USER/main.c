@@ -115,11 +115,11 @@ int main(void)
 										do
 											{
 										   count=(TIM1->CNT)/4;
-											 Dealy_us(20000);   //100ms 间隔检查
+											 Dealy_us(10000);   //100ms 间隔检查
                        count1=(TIM1->CNT)/4;
 											 if(RxMessage.Data[1]==0x00)
 							         break;
-											                                               }   while(1);//while(count!=count1);
+											                                               }  while(count!=count1);
                     	 GPIO_ResetBits(GPIOC,GPIO_Pin_7); //停止		
                        SysTick->CTRL &= ~SysTick_CTRL_ENABLE_Msk;  //关闭Systick											 
 																	
@@ -137,10 +137,10 @@ int main(void)
 												do
 											{
 										   count=(TIM1->CNT)/4;
-											 Dealy_us(20000);
+											 Dealy_us(10000); //100ms 间隔检查
                        count1=(TIM1->CNT)/4;
 											 if(RxMessage.Data[1]==0x00)
-							         break;                     }   while(1);//while(count!=count1); 注释内容为正确的，while(1)关掉停止判定
+							         break;                     }  while(count!=count1);
                     	 GPIO_ResetBits(GPIOC,GPIO_Pin_7); //停止		
                        SysTick->CTRL &= ~SysTick_CTRL_ENABLE_Msk;  //关闭Systick
 

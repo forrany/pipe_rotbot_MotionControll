@@ -149,7 +149,7 @@ int main(void)
 									 do
 											 {
 													count=(TIM1->CNT);
-													Dealy_us(10000);  //10ms
+													Dealy_us(10000);  //100ms
 													count1=(TIM1->CNT);
 												  speed = count - count1;
 //												  SendSpeed(speed);                //收缩不存在滤波的问题
