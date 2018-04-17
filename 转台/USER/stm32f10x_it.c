@@ -28,6 +28,7 @@ extern __IO uint32_t flag;
 extern CanRxMsg RxMessage;
 extern CanTxMsg TxMessage;
 extern volatile u32 timer;
+extern volatile u8 interFlag;
 extern __IO uint32_t TimingDelay;
 #include <stdio.h>
 /** @addtogroup STM32F10x_StdPeriph_Template
@@ -68,6 +69,16 @@ void TIM3_IRQHandler(void)
 	}	
 	TIM3->SR&=~(1<<0);//清除中断标志位 	
 	
+}
+
+void EXTI15_10_IRQHandler(void){
+	if(EXTI_GetITStatus(EXTI_Line15)!=RESET){
+		if(!GPIO_ReadInputDataBit(GPIOA, GPIO_Pin_15)){
+		interFlag = 1;
+		}
+		EXTI_ClearITPendingBit(EXTI_Line15);   //清除 LINE 上的中断标志位
+	}
+
 }
 
 void TIM4_IRQHandler(void)

@@ -7,6 +7,7 @@
 "..\output\usart1.o"
 "..\output\encode.o"
 "..\output\timer.o"
+"..\output\gpio.o"
 "..\output\misc.o"
 "..\output\stm32f10x_bkp.o"
 "..\output\stm32f10x_can.o"

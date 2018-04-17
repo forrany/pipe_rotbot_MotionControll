@@ -19,3 +19,4 @@
 ..\output\main.o: can.h
 ..\output\main.o: encode.h
 ..\output\main.o: timer.h
+..\output\main.o: gpio.h

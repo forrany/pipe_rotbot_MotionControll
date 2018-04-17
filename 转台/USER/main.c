@@ -2,6 +2,7 @@
 #include "can.h"
 #include "encode.h"
 #include "timer.h"
+#include "gpio.h"
 
 void  Delay_Ms(u16 time);
 void Data_Trans(_Bool IO);
@@ -12,8 +13,10 @@ CanRxMsg RxMessage;				 //CAN1接收缓冲区
 signed short count=0;//编码器计数  两字节
 signed short count1=0; 
 volatile u32 timer=0x0000;  //测量转台转过的时间
+volatile u8 interFlag = 0;  //用于中断标志，如果进入中断置1
 int main(void)  
 {  
+	Key_INIT();
 	CAN_Config();
 	TIM3_Init();
 	SysTick_Init();
@@ -36,6 +39,10 @@ int main(void)
 												  count1=JueDuiZ((TIM3->CNT)/4-count);	
                           if(RxMessage.Data[1]==0x00)
                           break;
+													if(interFlag == 1){
+														interFlag = 0;
+														break;
+													}
                                           									 } while(count1<0x377f);	
                  GPIO_ResetBits(GPIOC,GPIO_Pin_6);		 //停止	
 								 SysTick->CTRL &= ~SysTick_CTRL_ENABLE_Msk;  //关闭Systick
@@ -56,7 +63,11 @@ int main(void)
 									{ Dealy_us(1);
 									 count1= JueDuiZ((TIM3->CNT)/4-count);
 									if(RxMessage.Data[1]==0x00)
-									break;				
+									break;
+									if(interFlag == 1){
+										interFlag = 0;
+										break;
+									}
 									}     while(count1<0x37a0);
 						 GPIO_ResetBits(GPIOC,GPIO_Pin_6);
 						 SysTick->CTRL &= ~SysTick_CTRL_ENABLE_Msk;
