@@ -6,6 +6,7 @@
 
 void  Delay_Ms(u16 time);
 void Data_Trans(_Bool IO);
+void Stretch_InforSend(_Bool IO);
 short JueDuiZ(short value);
 __IO uint32_t flag = 0xff;		 //用于CAN标志是否接收到数据，在中断函数中赋值
 CanTxMsg TxMessage;			     //CAN1发送缓冲区
@@ -113,7 +114,7 @@ int main(void)
 			 
 	  if(RxMessage.Data[0]==0x0C)   // 伸缩运动
 	       {   flag=0xff;
-							if(RxMessage.Data[1]==0x01)      //伸展
+							if(RxMessage.Data[1]==0x01)      //收缩
 							{
 											
 								    switch(RxMessage.Data[2])
@@ -132,11 +133,11 @@ int main(void)
 							         break;
 											                                               }  while(count!=count1);
                     	 GPIO_ResetBits(GPIOC,GPIO_Pin_7); //停止		
-                       SysTick->CTRL &= ~SysTick_CTRL_ENABLE_Msk;  //关闭Systick											 
+                       SysTick->CTRL &= ~SysTick_CTRL_ENABLE_Msk;  //关闭Systick					
 																	
 
 							 }
-							if(RxMessage.Data[1]==0x02)
+							if(RxMessage.Data[1]==0x02)    //伸展
 								{ 
 											switch(RxMessage.Data[2])
 											{
@@ -154,6 +155,7 @@ int main(void)
 							         break;                     }  while(count!=count1);
                     	 GPIO_ResetBits(GPIOC,GPIO_Pin_7); //停止		
                        SysTick->CTRL &= ~SysTick_CTRL_ENABLE_Msk;  //关闭Systick
+											 Stretch_InforSend(0);
 
 								}
 //							if(RxMessage.Data[1]==0x00)
@@ -211,8 +213,8 @@ void Data_Trans(_Bool IO)
     if(IO==0)     // 需要发送转台时间数据包
 		{
 	  u16 shortime=(u16)(timer/100);	  // 单位转换为1ms			 
-	  TxMessage.DLC=3;;
-		TxMessage.Data[0]=(TIM3->CNT)/4;													
+	  TxMessage.DLC=3;
+		TxMessage.Data[0]= 0x00;   //表示正常时间数据包
 		TxMessage.Data[1]=shortime&0x00ff;
 		TxMessage.Data[2]=shortime>>8;
     CAN_Transmit(CAN1,&TxMessage);
@@ -229,4 +231,20 @@ void Data_Trans(_Bool IO)
 			CAN_Transmit(CAN1,&TxMessage);
 		}
 	
+}
+
+/*******************************************************************************
+* Function Name  : Stretch_InforSend
+* Description    : send the status of Stretch structure
+* Input          : None
+* Output         : None
+* Return         : None
+*******************************************************************************/
+void Stretch_InforSend(_Bool IO) {
+	 if(IO == 0){
+		 TxMessage.Data[0]= 0x01;  //表示伸展到最大状态
+	 }else{
+		 TxMessage.Data[0]= 0x02;  //
+	 }
+	 CAN_Transmit(CAN1,&TxMessage);
 }

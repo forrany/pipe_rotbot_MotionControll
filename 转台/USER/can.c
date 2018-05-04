@@ -139,7 +139,7 @@ void CAN_SetMsg(void)
   TxMessage.IDE=CAN_ID_EXT;					 //扩展模式
   TxMessage.RTR=CAN_RTR_DATA;				 //发送的是数据
   TxMessage.DLC=5;							 //数据长度为2字节
-  TxMessage.Data[0]=0x00;
+  TxMessage.Data[0]=0x03;
   TxMessage.Data[1]=0x00;
 	TxMessage.Data[2]=0x00;
 	TxMessage.Data[3]=0x00;
