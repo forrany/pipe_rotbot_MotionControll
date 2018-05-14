@@ -6,6 +6,8 @@
 
 void  Delay_Ms(u16 time);
 void Data_Trans(_Bool IO);
+_Bool isSpeedDown(_Bool IO);
+void Speed_Trans(void);
 void Stretch_InforSend(_Bool IO);
 short JueDuiZ(short value);
 __IO uint32_t flag = 0xff;		 //用于CAN标志是否接收到数据，在中断函数中赋值
@@ -13,6 +15,8 @@ CanTxMsg TxMessage;			     //CAN1发送缓冲区
 CanRxMsg RxMessage;				 //CAN1接收缓冲区 
 signed short count=0;//编码器计数  两字节
 signed short count1=0; 
+signed short speed ;
+_Bool speedDownFlag = 1;
 volatile u32 timer=0x0000;  //测量转台转过的时间
 volatile u8 interFlag = 0;  //用于中断标志，如果进入中断置1
 int main(void)  
@@ -129,11 +133,18 @@ int main(void)
 										   count=(TIM1->CNT)/4;
 											 Dealy_us(10000);   //100ms 间隔检查
                        count1=(TIM1->CNT)/4;
+											 //Speed_Trans();
+											 if(isSpeedDown(0)&&speedDownFlag){
+												Motor2_control(0,500);
+												 speedDownFlag = 0;
+											 }
 											 if(RxMessage.Data[1]==0x00)
 							         break;
+											 
 											                                               }  while(count!=count1);
                     	 GPIO_ResetBits(GPIOC,GPIO_Pin_7); //停止		
-                       SysTick->CTRL &= ~SysTick_CTRL_ENABLE_Msk;  //关闭Systick					
+                       SysTick->CTRL &= ~SysTick_CTRL_ENABLE_Msk;  //关闭Systick			
+											 speedDownFlag = 1;
 																	
 
 							 }
@@ -151,12 +162,33 @@ int main(void)
 										   count=(TIM1->CNT)/4;
 											 Dealy_us(10000); //100ms 间隔检查
                        count1=(TIM1->CNT)/4;
+											 //Speed_Trans();
+											 if(isSpeedDown(1)&&speedDownFlag){
+												 Motor2_control(750,0);
+												 speedDownFlag = 0;
+											 }
 											 if(RxMessage.Data[1]==0x00)
 							         break;                     }  while(count!=count1);
                     	 GPIO_ResetBits(GPIOC,GPIO_Pin_7); //停止		
                        SysTick->CTRL &= ~SysTick_CTRL_ENABLE_Msk;  //关闭Systick
 											 Stretch_InforSend(0);
+											 speedDownFlag = 1;
 
+								}
+								if(RxMessage.Data[1] == 0x03)
+								{	
+									switch(RxMessage.Data[2])
+											{
+												case 1: Motor2_control(0,400); break;
+												case 2: Motor2_control(0,500); break;
+												case 3: Motor2_control(0,750); break;
+												case 4: Motor2_control(0,999); break;
+											}
+									Dealy_us(600000);
+									GPIO_ResetBits(GPIOC,GPIO_Pin_7); //停止	
+									SysTick->CTRL &= ~SysTick_CTRL_ENABLE_Msk;  //关闭Systick
+									Stretch_InforSend(1);
+									
 								}
 //							if(RxMessage.Data[1]==0x00)
 //							{
@@ -233,6 +265,32 @@ void Data_Trans(_Bool IO)
 	
 }
 
+
+void Speed_Trans(void)
+{
+	speed = count1 > count? count1 - count : count - count1;
+	TxMessage.Data[0] = speed;
+	TxMessage.Data[1] = speed;
+	TxMessage.Data[2] = speed;
+	CAN_Transmit(CAN1,&TxMessage);
+	TIM1->CNT = 0X00;
+}
+
+
+_Bool isSpeedDown(_Bool IO){
+  speed = count1 > count? count1 - count : count - count1;
+	if(IO == 1)  //扩张  阈值e4
+	{
+		if(speed > 0xf0){
+			return 1;
+		}
+	}else if(IO == 0){
+		if(speed < 0x10){
+			return 1;
+		}
+	}
+	return 0;
+}
 /*******************************************************************************
 * Function Name  : Stretch_InforSend
 * Description    : send the status of Stretch structure
@@ -244,7 +302,7 @@ void Stretch_InforSend(_Bool IO) {
 	 if(IO == 0){
 		 TxMessage.Data[0]= 0x01;  //表示伸展到最大状态
 	 }else{
-		 TxMessage.Data[0]= 0x02;  //
+		 TxMessage.Data[0]= 0x02;  //表示已经收缩6秒
 	 }
 	 CAN_Transmit(CAN1,&TxMessage);
 }
